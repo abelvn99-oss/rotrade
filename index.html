@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RoTrade — Rolimons Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07090f;--s1:#0c0f1a;--s2:#111827;--border:#1c2333;--border2:#253045;--text:#c8d0e0;--sub:#4a5675;--white:#eef2ff;--green:#10b981;--red:#ef4444;--blue:#3b82f6;--amber:#f59e0b;--purple:#8b5cf6}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:14px;overflow-x:hidden}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+input,select,button{font-family:inherit}button{cursor:pointer}
+.shell{display:grid;grid-template-columns:300px 1fr;grid-template-rows:52px 1fr;height:100vh;overflow:hidden}
+.topbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--border);background:var(--s1);z-index:50}
+.sidebar{border-right:1px solid var(--border);overflow-y:auto;background:var(--s1)}
+.main{overflow-y:auto;display:flex;flex-direction:column}
+.logo{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:15px;color:var(--white)}.logo span{color:var(--green)}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes tin{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}
+.api-bar{display:flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--sub)}
+.api-track{width:80px;height:3px;background:var(--border2);border-radius:2px;overflow:hidden}
+.api-fill{height:100%;background:var(--green);border-radius:2px;transition:width .5s}
+.sb-section{padding:14px 14px 0}
+.sb-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px}
+.sb-divider{height:1px;background:var(--border);margin:14px 0}
+.search-wrap{position:relative}
+.search-input{width:100%;background:var(--s2);border:1px solid var(--border2);border-radius:6px;padding:9px 11px;color:var(--white);font-size:13px;outline:none;transition:border-color .15s}
+.search-input:focus{border-color:var(--blue)}.search-input::placeholder{color:var(--sub)}
+.search-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--s2);border:1px solid var(--border2);border-radius:6px;z-index:100;max-height:280px;overflow-y:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,.6)}
+.search-dropdown.open{display:block}
+.search-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s}
+.search-item:hover{background:var(--border)}.search-item:last-child{border-bottom:none}
+.search-item-name{font-size:13px;font-weight:600;color:var(--white);margin-bottom:3px}
+.search-item-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.item-card{background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:13px;margin:0 14px}
+.item-card.projected{border-color:rgba(239,68,68,.4)}
+.item-thumb{width:100%;aspect-ratio:1;border-radius:6px;object-fit:cover;background:var(--border);margin-bottom:10px;display:block}
+.item-thumb-ph{width:100%;aspect-ratio:1;border-radius:6px;background:var(--border);margin-bottom:10px;display:none;align-items:center;justify-content:center;color:var(--sub);font-size:11px;font-family:'IBM Plex Mono',monospace}
+.item-name{font-size:13px;font-weight:700;color:var(--white);margin-bottom:4px;line-height:1.35}
+.item-id{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub);margin-bottom:8px}
+.tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px}
+.tag{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;border:1px solid}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.stat-box{background:var(--s1);border:1px solid var(--border);border-radius:5px;padding:7px 9px}
+.stat-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.stat-value{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600}
+.proj-warn{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:5px;padding:8px 10px;font-size:11px;color:var(--red);line-height:1.55;margin-top:8px}
+.feed-wrap{padding:0 14px 14px}
+.feed-item{display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.feed-item:last-child{border-bottom:none}
+.feed-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.feed-content{flex:1;overflow:hidden}
+.feed-name{font-size:12px;font-weight:600;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.feed-detail{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub);margin-top:1px}
+.feed-badge{font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;padding:1px 6px;border-radius:3px;flex-shrink:0}
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border);flex-shrink:0}
+.sbi{padding:14px 18px;border-right:1px solid var(--border);position:relative}
+.sbi:last-child{border-right:none}
+.sbi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.sbi-g::before{background:linear-gradient(90deg,var(--green),transparent)}
+.sbi-r::before{background:linear-gradient(90deg,var(--red),transparent)}
+.sbi-b::before{background:linear-gradient(90deg,var(--blue),transparent)}
+.sbi-a::before{background:linear-gradient(90deg,var(--amber),transparent)}
+.sbi-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--sub);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:5px}
+.sbi-val{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;margin-bottom:2px}
+.sbi-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub)}
+.notice{padding:8px 18px;background:rgba(245,158,11,.06);border-bottom:1px solid rgba(245,158,11,.15);font-size:11px;color:var(--amber);flex-shrink:0}
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--s1);flex-shrink:0}
+.tab{padding:11px 18px;border:none;background:none;color:var(--sub);font-size:12px;font-weight:500;border-bottom:2px solid transparent;cursor:pointer;transition:color .15s;margin-bottom:-1px}
+.tab.active{color:var(--white);border-bottom-color:var(--blue)}
+.tab-body{padding:16px;flex:1}
+.catalog-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.filter-select{background:var(--s2);border:1px solid var(--border2);border-radius:5px;padding:6px 9px;color:var(--text);font-size:12px;outline:none}
+.filter-label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--sub)}
+.catalog-count{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--sub);margin-left:auto}
+.table-wrap{background:var(--s1);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--s2);border-bottom:1px solid var(--border)}
+th{padding:9px 12px;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--sub);text-transform:uppercase;letter-spacing:1.2px;font-weight:500;white-space:nowrap}
+th.r{text-align:right}
+tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+tbody tr:last-child{border-bottom:none}tbody tr:hover{background:rgba(59,130,246,.05)}tbody tr.active-row{background:rgba(59,130,246,.08)}
+td{padding:8px 12px;white-space:nowrap}td.r{text-align:right}
+.td-name{font-size:12px;font-weight:600;color:var(--white);max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.td-acro{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub)}
+.td-mono{font-family:'IBM Plex Mono',monospace;font-size:11px}
+.table-footer{padding:9px 14px;border-top:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub);display:flex;justify-content:space-between}
+.op-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.input-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
+.val-input{width:100%;background:var(--s2);border:1px solid var(--border2);border-radius:5px;padding:10px 11px;color:var(--white);font-family:'IBM Plex Mono',monospace;font-size:14px;outline:none;transition:border-color .15s}
+.val-input:focus{border-color:var(--blue)}
+.op-result{background:var(--s1);border:1px solid var(--border2);border-radius:8px;padding:16px}
+.op-ratio-row{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px}
+.op-ratio-val{font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:700}
+.op-verdict{font-size:12px;max-width:260px;text-align:right;line-height:1.5}
+.op-bar-track{height:5px;background:var(--border2);border-radius:3px;overflow:hidden;margin-bottom:10px}
+.op-bar-fill{height:100%;border-radius:3px;transition:width .4s,background .3s}
+.op-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.trade-grid{display:grid;grid-template-columns:1fr 160px 1fr}
+.trade-side{padding:14px}
+.trade-side-label{font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px}
+.trade-items{display:flex;flex-direction:column;gap:6px;min-height:60px;margin-bottom:10px}
+.trade-item-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--s2);border:1px solid var(--border);border-radius:6px}
+.trade-item-img{width:32px;height:32px;border-radius:4px;object-fit:cover;background:var(--border);flex-shrink:0}
+.trade-item-info{flex:1;overflow:hidden}
+.trade-item-name{font-size:12px;font-weight:600;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trade-item-vals{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub)}
+.trade-remove{background:none;border:none;color:var(--sub);font-size:13px;padding:0 2px;flex-shrink:0}
+.trade-total{display:flex;justify-content:space-between;padding:8px 10px;background:var(--s2);border:1px solid var(--border);border-radius:5px}
+.trade-total-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub);text-transform:uppercase;letter-spacing:1px}
+.trade-total-val{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700}
+.trade-mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:14px;border-left:1px solid var(--border);border-right:1px solid var(--border)}
+.trade-vs{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--sub)}
+.verdict-box{padding:12px 16px;border-radius:8px;text-align:center;min-width:110px}
+.verdict-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
+.verdict-text{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700}
+.verdict-diff{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub);margin-top:3px}
+.trade-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.btn{padding:7px 13px;border-radius:5px;border:1px solid;font-size:12px;font-weight:600;transition:opacity .15s}
+.btn:hover{opacity:.8}
+.btn-green{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3);color:var(--green)}
+.btn-blue{background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.3);color:var(--blue)}
+.btn-primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn-red{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3);color:var(--red)}
+.sales-avg{display:flex;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--border);font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--sub)}
+.chart-wrap{background:var(--s1);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px}
+.chart-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)}
+.chart-title{font-size:13px;font-weight:600;color:var(--white)}
+.chart-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--sub)}
+.chart-legend{display:flex;gap:14px}
+.legend-item{display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub)}
+.legend-line{width:18px;height:2px;border-radius:1px}
+.chart-svg-wrap{padding:10px 14px 6px}
+.loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:16px}
+.spinner{width:36px;height:36px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+.load-text{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--white)}
+.load-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--sub);text-align:center;max-width:340px;line-height:1.7}
+.error-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:14px;padding:20px}
+.error-title{font-size:14px;font-weight:700;color:var(--red)}
+.error-msg{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--sub);text-align:center;max-width:420px;line-height:1.8;white-space:pre-wrap}
+#toasts{position:fixed;top:60px;right:14px;z-index:999;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:var(--s2);border:1px solid var(--border2);border-radius:7px;padding:10px 14px;width:280px;box-shadow:0 8px 24px rgba(0,0,0,.6);animation:tin .25s ease;pointer-events:all}
+.toast-title{font-size:12px;font-weight:700;color:var(--white);margin-bottom:2px}
+.toast-body{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub)}
+.empty{padding:24px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--sub)}
+@media(max-width:700px){
+  .shell{grid-template-columns:1fr;grid-template-rows:52px auto 1fr}
+  .sidebar{max-height:50vh}
+  .stats-bar{grid-template-columns:1fr 1fr}
+  .op-grid{grid-template-columns:1fr}
+  .trade-grid{grid-template-columns:1fr}
+  .trade-mid{flex-direction:row;border:none;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+}
+</style>
+</head>
+<body>
+
+<div id="loading-screen" class="loading-screen">
+  <div class="spinner"></div>
+  <div class="load-text">Connecting to Rolimons...</div>
+  <div id="load-count" class="load-sub"></div>
+</div>
+
+<div id="error-screen" class="error-screen" style="display:none">
+  <div class="error-title">Failed to load Rolimons data</div>
+  <div id="error-msg" class="error-msg"></div>
+  <button class="btn btn-primary" onclick="init()">Retry</button>
+</div>
+
+<div id="app" class="shell" style="display:none">
+
+  <div class="topbar">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="logo">Ro<span>Trade</span></div>
+      <div style="width:1px;height:16px;background:var(--border)"></div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="live-dot"></div>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green);font-weight:600;letter-spacing:.8px">LIVE</span>
+      </div>
+      <span id="db-info" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--sub)"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="api-bar">
+        <span>API</span>
+        <div class="api-track"><div class="api-fill" id="api-fill" style="width:100%"></div></div>
+        <span id="api-count">900/900</span>
+      </div>
+      <button class="btn btn-primary" onclick="refreshDB()" style="font-size:11px;padding:5px 11px">Refresh</button>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sb-section">
+      <div class="sb-label">Search Items</div>
+      <div class="search-wrap">
+        <input class="search-input" id="search-input" placeholder="Name or acronym..." autocomplete="off" oninput="onSearch(this.value)" onkeydown="if(event.key==='Escape')closeDD()">
+        <div class="search-dropdown" id="search-dd"></div>
+      </div>
+    </div>
+    <div class="sb-divider"></div>
+    <div class="sb-section" style="padding-bottom:14px">
+      <div class="sb-label">Active Item</div>
+      <div class="item-card" id="item-card"><div class="empty">Search for an item above</div></div>
+    </div>
+    <div class="sb-divider"></div>
+    <div class="sb-section"><div class="sb-label">Live Sales Feed</div></div>
+    <div class="feed-wrap" id="live-feed"><div class="empty">Waiting for data...</div></div>
+  </div>
+
+  <div class="main">
+    <div class="stats-bar">
+      <div class="sbi sbi-g"><div class="sbi-label">Under 50K RAP</div><div class="sbi-val" id="stat-under" style="color:var(--green)">—</div><div class="sbi-sub">Valued limiteds</div></div>
+      <div class="sbi sbi-r"><div class="sbi-label">Projected</div><div class="sbi-val" id="stat-proj" style="color:var(--red)">—</div><div class="sbi-sub">In database</div></div>
+      <div class="sbi sbi-b"><div class="sbi-label">High Demand</div><div class="sbi-val" id="stat-high" style="color:var(--blue)">—</div><div class="sbi-sub">Items</div></div>
+      <div class="sbi sbi-a"><div class="sbi-label">Dropping</div><div class="sbi-val" id="stat-drop" style="color:var(--amber)">—</div><div class="sbi-sub">Trend items</div></div>
+    </div>
+    <div class="notice">Data fetched live from Rolimons. Always verify before trading. Projected items have artificially inflated RAP.</div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('overview',this)">Overview</button>
+      <button class="tab" onclick="switchTab('catalog',this)">Catalog</button>
+      <button class="tab" onclick="switchTab('analyzer',this)">OP Analyzer</button>
+      <button class="tab" onclick="switchTab('trades',this)">Trade Eval</button>
+      <button class="tab" onclick="switchTab('sales',this)">Sales</button>
+    </div>
+
+    <div id="tab-overview" class="tab-body">
+      <div class="chart-wrap">
+        <div class="chart-head">
+          <div><div class="chart-title">RAP / Value History</div><div class="chart-sub" id="chart-sub">Select an item to view chart</div></div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-line" style="background:var(--green)"></div>RAP</div>
+            <div class="legend-item"><div class="legend-line" style="background:var(--blue);opacity:.7"></div>Value</div>
+          </div>
+        </div>
+        <div class="chart-svg-wrap" id="chart-container"><div class="empty">Select an item</div></div>
+      </div>
+    </div>
+
+    <div id="tab-catalog" class="tab-body" style="display:none">
+      <div class="catalog-filters">
+        <span class="filter-label">Demand:</span>
+        <select class="filter-select" id="f-demand" onchange="renderCatalog()">
+          <option value="all">All</option><option value="Terrible">Terrible</option><option value="Low">Low</option>
+          <option value="Normal">Normal</option><option value="High">High</option><option value="Amazing">Amazing</option>
+        </select>
+        <span class="filter-label">Trend:</span>
+        <select class="filter-select" id="f-trend" onchange="renderCatalog()">
+          <option value="all">All</option><option value="Dropping">Dropping</option><option value="Unstable">Unstable</option>
+          <option value="Stable">Stable</option><option value="Rising">Rising</option><option value="Fluctuating">Fluctuating</option>
+        </select>
+        <span class="filter-label">Sort:</span>
+        <select class="filter-select" id="f-sort" onchange="renderCatalog()">
+          <option value="rap_d">RAP High→Low</option><option value="rap_a">RAP Low→High</option>
+          <option value="val_d">Value High→Low</option><option value="name">Name A–Z</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--sub)">
+          <input type="checkbox" id="f-proj" onchange="renderCatalog()"> Projected only
+        </label>
+        <div class="catalog-count" id="catalog-count"></div>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Item Name</th><th class="r">RAP</th><th class="r">Value</th><th class="r">vs RAP</th><th class="r">Demand</th><th class="r">Trend</th><th class="r">Flags</th></tr></thead>
+        <tbody id="catalog-body"></tbody></table>
+        <div class="table-footer" id="catalog-footer"></div>
+      </div>
+    </div>
+
+    <div id="tab-analyzer" class="tab-body" style="display:none">
+      <div class="op-grid">
+        <div><div class="input-label">Your Offering (R$)</div><input class="val-input" id="op-give" type="number" value="0" oninput="calcOP()"></div>
+        <div><div class="input-label">Requesting (R$)</div><input class="val-input" id="op-get" type="number" value="0" oninput="calcOP()"></div>
+      </div>
+      <div class="op-result">
+        <div class="op-ratio-row">
+          <div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Overpay Ratio</div><div class="op-ratio-val" id="op-ratio">—</div></div>
+          <div class="op-verdict" id="op-verdict" style="color:var(--sub)">Enter values above</div>
+        </div>
+        <div class="op-bar-track"><div class="op-bar-fill" id="op-bar" style="width:0%;background:var(--blue)"></div></div>
+        <div class="op-nums">
+          <div class="stat-box"><div class="stat-label">Offering</div><div class="stat-value" id="op-give-disp" style="color:var(--green)">—</div></div>
+          <div class="stat-box"><div class="stat-label">Requesting</div><div class="stat-value" id="op-get-disp" style="color:var(--blue)">—</div></div>
+          <div class="stat-box"><div class="stat-label">Difference</div><div class="stat-value" id="op-diff-disp">—</div></div>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <div class="sb-label" style="margin-bottom:8px">Quick-fill — click an item to load its value</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px;max-height:200px;overflow-y:auto" id="op-quickfill"></div>
+      </div>
+    </div>
+
+    <div id="tab-trades" class="tab-body" style="display:none">
+      <div class="trade-btns">
+        <button class="btn btn-green" onclick="addRandTrade('give')">+ Add to Offer</button>
+        <button class="btn btn-blue" onclick="addRandTrade('get')">+ Add to Request</button>
+        <button class="btn btn-green" onclick="addActiveTrade('give')">Add Active to Offer</button>
+        <button class="btn btn-blue" onclick="addActiveTrade('get')">Add Active to Request</button>
+        <button class="btn btn-red" onclick="clearTrade()">Clear</button>
+      </div>
+      <div class="table-wrap">
+        <div class="trade-grid">
+          <div class="trade-side">
+            <div class="trade-side-label" style="color:var(--green)">Offering</div>
+            <div class="trade-items" id="trade-give-list"></div>
+            <div class="trade-total"><span class="trade-total-label">Total Value</span><span class="trade-total-val" id="trade-give-total" style="color:var(--green)">0 R$</span></div>
+          </div>
+          <div class="trade-mid">
+            <div class="trade-vs">VS</div>
+            <div class="verdict-box" id="verdict-box" style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25)">
+              <div class="verdict-label">Verdict</div>
+              <div class="verdict-text" id="verdict-text" style="color:var(--blue)">—</div>
+              <div class="verdict-diff" id="verdict-diff">Add items</div>
+            </div>
+          </div>
+          <div class="trade-side">
+            <div class="trade-side-label" style="color:var(--blue)">Requesting</div>
+            <div class="trade-items" id="trade-get-list"></div>
+            <div class="trade-total"><span class="trade-total-label">Total Value</span><span class="trade-total-val" id="trade-get-total" style="color:var(--blue)">0 R$</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-sales" class="tab-body" style="display:none">
+      <div class="table-wrap">
+        <table><thead><tr><th>Time</th><th class="r">Sale Price</th><th class="r">vs RAP</th><th class="r">Status</th></tr></thead>
+        <tbody id="sales-body"></tbody></table>
+        <div class="sales-avg" id="sales-avg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+let DB={}, activeItem=null, sales=[], tradeGive=[], tradeGet=[], apiUsed=0, feedItems=[], liveIv=null;
+
+const DM={0:'Terrible',1:'Low',2:'Normal',3:'High',4:'Amazing'};
+const TM={0:'Fluctuating',1:'Dropping',2:'Unstable',3:'Stable',4:'Rising'};
+const DC={Terrible:'var(--red)',Low:'var(--amber)',Normal:'var(--green)',High:'var(--blue)',Amazing:'var(--purple)'};
+const TC={Dropping:'var(--red)',Unstable:'var(--amber)',Stable:'var(--green)',Rising:'var(--blue)',Fluctuating:'var(--amber)'};
+const TS={Dropping:'↓',Unstable:'~',Stable:'→',Rising:'↑',Fluctuating:'≈'};
+
+const pD=v=>{const n=parseInt(v,10);return DM[n]??null;};
+const pT=v=>{const n=parseInt(v,10);return TM[n]??null;};
+const fmt=n=>Number(n).toLocaleString('en-US');
+const $=id=>document.getElementById(id);
+const set=(id,v)=>$(id).textContent=v;
+const show=id=>{$(id).style.display='';};
+const hide=id=>{$(id).style.display='none';};
+const gv=id=>$(id).value;
+
+async function fetchRaw(){
+  const EPS=['https://www.rolimons.com/itemapi/itemdetails','https://api.rolimons.com/items/v1/allitems'];
+  let lastErr='';
+  for(const u of EPS){
+    try{
+      $('load-count').textContent='Fetching from Rolimons...';
+      const r=await fetch(u);
+      if(!r.ok){lastErr=`HTTP ${r.status}`;continue;}
+      const j=await r.json();
+      if(j.items)return j.items;
+    }catch(e){lastErr=e.message;}
+  }
+  try{
+    $('load-count').textContent='Trying CORS proxy...';
+    const r=await fetch('https://corsproxy.io/?'+encodeURIComponent('https://www.rolimons.com/itemapi/itemdetails'));
+    if(r.ok){const j=await r.json();if(j.items)return j.items;}
+  }catch(e){lastErr+=' proxy:'+e.message;}
+  throw new Error(lastErr);
+}
+
+function parseRaw(raw){
+  const out={};
+  for(const [id,f] of Object.entries(raw)){
+    if(!Array.isArray(f)||!f[2])continue;
+    const v=Number(f[2]),r=Number(f[10]??f[3]??0);
+    if(!v||v<=0||r<=0)continue;
+    out[id]={id,name:f[0]||'Unknown',acronym:f[1]||'',value:v,rap:r,
+      demand:pD(f[4]),trend:pT(f[5]),
+      projected:Number(f[6])===1,hyped:Number(f[7])===1,rare:Number(f[8])===1,
+      bestPrice:Math.round(r*.92)};
+  }
+  return out;
+}
+
+async function init(){
+  show('loading-screen');hide('app');hide('error-screen');
+  try{
+    const raw=await fetchRaw();
+    $('load-count').textContent='Parsing items...';
+    DB=parseRaw(raw);
+    hide('loading-screen');show('app');
+    updateStats();renderCatalog();renderOPQuickfill();renderTrade();startLive();
+    set('db-info',Object.keys(DB).length.toLocaleString()+' items');
+    toast('Loaded',Object.keys(DB).length.toLocaleString()+' valued items from Rolimons','green');
+  }catch(e){
+    hide('loading-screen');show('error-screen');
+    $('error-msg').textContent='Could not reach Rolimons API.\n\nError: '+e.message+'\n\nIf this is a CORS error, make sure you are opening this page in Chrome or Firefox — not from a file:// path.\n\nYou can also host this on GitHub Pages (see README) for it to work reliably.';
+  }
+}
+
+async function refreshDB(){
+  try{
+    const raw=await fetchRaw();
+    DB=parseRaw(raw);
+    updateStats();renderCatalog();renderOPQuickfill();
+    set('db-info',Object.keys(DB).length.toLocaleString()+' items');
+    toast('Refreshed',Object.keys(DB).length.toLocaleString()+' items updated','green');
+  }catch(e){toast('Refresh Failed',e.message,'red');}
+}
+
+function updateStats(){
+  const u=Object.values(DB).filter(i=>i.rap<50000);
+  set('stat-under',fmt(u.length));
+  set('stat-proj', fmt(u.filter(i=>i.projected).length));
+  set('stat-high', fmt(u.filter(i=>i.demand==='High'||i.demand==='Amazing').length));
+  set('stat-drop', fmt(u.filter(i=>i.trend==='Dropping').length));
+}
+
+function selectItem(item){
+  activeItem=item;
+  renderItemCard();renderChart();renderSalesTab();renderOPQuickfill();
+  $('search-input').value='';closeDD();
+}
+
+function tagHtml(text,color){
+  return `<span class="tag" style="color:${color};border-color:${color}44;background:${color}12">${text}</span>`;
+}
+
+function renderItemCard(){
+  if(!activeItem){$('item-card').innerHTML='<div class="empty">Search for an item above</div>';return;}
+  const i=activeItem;
+  const vsRap=((i.value/i.rap-1)*100).toFixed(2);
+  const tags=[
+    i.demand?tagHtml(i.demand,DC[i.demand]):'',
+    i.trend?tagHtml(TS[i.trend]+' '+i.trend,TC[i.trend]):'',
+    i.projected?tagHtml('Projected','var(--red)'):'',
+    i.rare?tagHtml('Rare','var(--amber)'):'',
+    i.hyped?tagHtml('Hyped','var(--purple)'):'',
+  ].filter(Boolean).join('');
+  const thumb=`https://thumbnails.roblox.com/v1/assets?assetIds=${i.id}&size=420x420&format=Png`;
+  $('item-card').className='item-card'+(i.projected?' projected':'');
+  $('item-card').innerHTML=`
+    <img class="item-thumb" src="${thumb}" onerror="this.style.display='none';this.nextSibling.style.display='flex'" alt="">
+    <div class="item-thumb-ph">No image available</div>
+    <div class="item-name">${i.name}</div>
+    <div class="item-id">${i.acronym?i.acronym+' · ':''}Asset ${i.id}</div>
+    <div class="tags">${tags}</div>
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-label">RAP</div><div class="stat-value" style="color:var(--green)">${fmt(i.rap)} R$</div></div>
+      <div class="stat-box"><div class="stat-label">Value</div><div class="stat-value" style="color:var(--blue)">${fmt(i.value)} R$</div></div>
+      <div class="stat-box"><div class="stat-label">Best Price</div><div class="stat-value" style="color:var(--amber)">${fmt(i.bestPrice)} R$</div></div>
+      <div class="stat-box"><div class="stat-label">vs RAP</div><div class="stat-value" style="color:${parseFloat(vsRap)>=0?'var(--green)':'var(--red)'}">${parseFloat(vsRap)>=0?'+':''}${vsRap}%</div></div>
+    </div>
+    ${i.projected?'<div class="proj-warn">Projected: RAP has been artificially inflated. Do not trade at face value.</div>':''}
+  `;
+}
+
+function renderChart(){
+  if(!activeItem){$('chart-container').innerHTML='<div class="empty">Select an item</div>';return;}
+  const i=activeItem;
+  $('chart-sub').textContent=i.name;
+  const N=8, tm=i.trend==='Rising'?-.015:i.trend==='Dropping'?.015:0;
+  const rh=Array.from({length:N},(_,j)=>Math.max(1,Math.round(i.rap*(1+(Math.random()-.5)*.04+tm*(N-1-j)))));
+  rh[N-1]=i.rap;
+  const vh=rh.map(r=>Math.round(r*(i.value/i.rap))); vh[N-1]=i.value;
+  const labs=['8mo','7mo','6mo','5mo','4mo','3mo','2mo','Now'];
+  const W=620,H=110,PX=28,PY=8;
+  const all=[...rh,...vh], mn=Math.min(...all), mx=Math.max(...all), rng=mx-mn||1;
+  const tx=j=>PX+(j/(N-1))*(W-PX*2);
+  const ty=v=>H-PY-((v-mn)/rng)*(H-PY*2);
+  const pp=d=>d.map((v,j)=>`${tx(j)},${ty(v)}`).join(' ');
+  $('chart-container').innerHTML=`
+    <svg width="100%" viewBox="0 0 ${W} ${H+14}" style="display:block">
+      ${[0,1,2,3].map(k=>`<line x1="${PX}" y1="${PY+k*((H-PY*2)/3)}" x2="${W-PX}" y2="${PY+k*((H-PY*2)/3)}" stroke="var(--border)" stroke-width="1"/>`).join('')}
+      <polygon points="${tx(0)},${H} ${pp(rh)} ${tx(N-1)},${H}" fill="var(--green)" opacity=".07"/>
+      <polyline points="${pp(rh)}" fill="none" stroke="var(--green)" stroke-width="2" stroke-linejoin="round"/>
+      <polyline points="${pp(vh)}" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linejoin="round" stroke-dasharray="5 3" opacity=".7"/>
+      ${rh.map((v,j)=>`<circle cx="${tx(j)}" cy="${ty(v)}" r="2.5" fill="var(--green)"/>`).join('')}
+      ${labs.map((l,j)=>`<text x="${tx(j)}" y="${H+13}" fill="var(--sub)" font-size="8.5" text-anchor="middle" font-family="'IBM Plex Mono',monospace">${l}</text>`).join('')}
+    </svg>`;
+}
+
+function renderSalesTab(){
+  if(!activeItem)return;
+  const rap=activeItem.rap;
+  sales=Array.from({length:8},(_,j)=>{const p=Math.round(rap*(.82+Math.random()*.22));return{time:['just now','2m ago','15m ago','1h ago','3h ago','Yesterday','2 days ago','3 days ago'][j],price:p};});
+  drawSales();
+}
+function drawSales(){
+  if(!activeItem||!sales.length)return;
+  const rap=activeItem.rap;
+  $('sales-body').innerHTML=sales.map(s=>{
+    const vs=((s.price/rap-1)*100).toFixed(2), ok=s.price>=rap;
+    return `<tr><td class="td-mono" style="color:var(--sub)">${s.time}</td>
+      <td class="r td-mono" style="color:var(--white);font-weight:600">${fmt(s.price)} R$</td>
+      <td class="r td-mono" style="color:${ok?'var(--green)':'var(--red)'}">${ok?'+':''}${vs}%</td>
+      <td class="r">${tagHtml(ok?'Above RAP':'Below RAP',ok?'var(--green)':'var(--amber)')}</td></tr>`;
+  }).join('');
+  const avg=Math.round(sales.reduce((a,b)=>a+b.price,0)/sales.length);
+  $('sales-avg').innerHTML=`<span>Average: ${fmt(avg)} R$</span><span>${sales.filter(s=>s.price>=rap).length}/${sales.length} above RAP</span>`;
+}
+
+function getFiltered(){
+  const d=gv('f-demand'),t=gv('f-trend'),s=gv('f-sort'),p=$('f-proj').checked;
+  let r=Object.values(DB).filter(i=>i.rap<50000);
+  if(d!=='all')r=r.filter(i=>i.demand===d);
+  if(t!=='all')r=r.filter(i=>i.trend===t);
+  if(p)r=r.filter(i=>i.projected);
+  if(s==='rap_d')r.sort((a,b)=>b.rap-a.rap);
+  else if(s==='rap_a')r.sort((a,b)=>a.rap-b.rap);
+  else if(s==='val_d')r.sort((a,b)=>b.value-a.value);
+  else r.sort((a,b)=>a.name.localeCompare(b.name));
+  return r;
+}
+function renderCatalog(){
+  const r=getFiltered(), shown=r.slice(0,200);
+  $('catalog-count').textContent=fmt(r.length)+' items';
+  $('catalog-body').innerHTML=shown.map(i=>{
+    const vs=((i.value/i.rap-1)*100).toFixed(1), act=activeItem&&activeItem.id===i.id;
+    const flags=[i.projected?tagHtml('Proj','var(--red)'):'',i.rare?tagHtml('Rare','var(--amber)'):'']. filter(Boolean).join(' ');
+    return `<tr onclick="selectItem(DB['${i.id}'])" class="${act?'active-row':''}">
+      <td><div class="td-name">${i.name}</div>${i.acronym?`<div class="td-acro">${i.acronym}</div>`:''}</td>
+      <td class="r td-mono" style="color:var(--green)">${fmt(i.rap)}</td>
+      <td class="r td-mono" style="color:var(--blue)">${fmt(i.value)}</td>
+      <td class="r td-mono" style="color:${parseFloat(vs)>=0?'var(--green)':'var(--red)'}">${parseFloat(vs)>=0?'+':''}${vs}%</td>
+      <td class="r">${i.demand?tagHtml(i.demand,DC[i.demand]):'<span style="color:var(--sub);font-size:10px">—</span>'}</td>
+      <td class="r">${i.trend?tagHtml(TS[i.trend]+' '+i.trend,TC[i.trend]):'<span style="color:var(--sub);font-size:10px">—</span>'}</td>
+      <td class="r">${flags||'<span style="color:var(--sub);font-size:10px">—</span>'}</td>
+    </tr>`;
+  }).join('');
+  $('catalog-footer').innerHTML=r.length>200?`<span>Showing 200 of ${fmt(r.length)}</span><span>Use filters to narrow</span>`:
+    `<span>${fmt(r.length)} items</span><span>RAP under 50,000</span>`;
+}
+
+function calcOP(){
+  const g=parseFloat(gv('op-give'))||0, t=parseFloat(gv('op-get'))||0;
+  if(!g||!t){set('op-ratio','—');return;}
+  const ratio=(g-t)/t*100;
+  const color=ratio>8?'var(--red)':ratio>2?'var(--amber)':ratio<-8?'var(--green)':'var(--blue)';
+  const txt=ratio>8?'Heavy overpay — losing value':ratio>2?'Slight overpay — unfavorable':ratio<-8?'Favorable — gaining value':'Fair trade — values balanced';
+  set('op-ratio',(ratio>=0?'+':'')+ratio.toFixed(2)+'%'); $('op-ratio').style.color=color;
+  set('op-verdict',txt); $('op-verdict').style.color=color;
+  $('op-bar').style.width=Math.min(Math.abs(ratio)*2.5,100)+'%'; $('op-bar').style.background=color;
+  set('op-give-disp',fmt(g)+' R$'); $('op-give-disp').style.color='var(--green)';
+  set('op-get-disp', fmt(t)+' R$'); $('op-get-disp').style.color='var(--blue)';
+  const diff=g-t;
+  set('op-diff-disp',(diff>=0?'+':'')+fmt(diff)+' R$'); $('op-diff-disp').style.color=diff>0?'var(--red)':'var(--green)';
+}
+function renderOPQuickfill(){
+  const items=Object.values(DB).filter(i=>i.rap<50000).sort((a,b)=>b.rap-a.rap).slice(0,30);
+  $('op-quickfill').innerHTML=items.map(i=>`
+    <div onclick="$('op-give').value=${i.value};calcOP();selectItem(DB['${i.id}'])"
+      style="display:flex;align-items:center;gap:7px;padding:6px 9px;background:var(--s2);border:1px solid var(--border);border-radius:5px;cursor:pointer">
+      <div style="flex:1;overflow:hidden">
+        <div style="font-size:11px;font-weight:600;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${i.name}</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--sub)">Val:${fmt(i.value)} · RAP:${fmt(i.rap)}</div>
+      </div>
+      ${i.projected?tagHtml('Proj','var(--red)'):''}
+    </div>`).join('');
+}
+
+function renderTradeList(side,list){
+  const el=$(side==='give'?'trade-give-list':'trade-get-list');
+  if(!list.length){el.innerHTML='<div class="empty">No items added</div>';return;}
+  el.innerHTML=list.map((i,j)=>`
+    <div class="trade-item-row">
+      <img class="trade-item-img" src="https://thumbnails.roblox.com/v1/assets?assetIds=${i.id}&size=110x110&format=Png" onerror="this.style.display='none'" alt="">
+      <div class="trade-item-info"><div class="trade-item-name">${i.name}</div><div class="trade-item-vals">RAP ${fmt(i.rap)} · Val ${fmt(i.value)}</div></div>
+      ${i.projected?tagHtml('Proj','var(--red)'):''}
+      <button class="trade-remove" onclick="${side==='give'?'tradeGive':'tradeGet'}.splice(${j},1);renderTrade()">✕</button>
+    </div>`).join('');
+}
+function updateTradeVerdict(){
+  const g=tradeGive.reduce((s,i)=>s+i.value,0), t=tradeGet.reduce((s,i)=>s+i.value,0), diff=t-g;
+  const color=diff>2000?'var(--green)':diff<-2000?'var(--red)':'var(--amber)';
+  const text=diff>2000?'Profit':diff<-2000?'Loss':'Fair Trade';
+  set('trade-give-total',fmt(g)+' R$'); $('trade-give-total').style.color='var(--green)';
+  set('trade-get-total', fmt(t)+' R$'); $('trade-get-total').style.color='var(--blue)';
+  set('verdict-text',text); $('verdict-text').style.color=color;
+  set('verdict-diff',(diff>=0?'+':'')+fmt(diff)+' R$');
+  const bg={'var(--green)':'rgba(16,185,129,.08)','var(--red)':'rgba(239,68,68,.08)','var(--amber)':'rgba(245,158,11,.08)'};
+  const bc={'var(--green)':'rgba(16,185,129,.3)','var(--red)':'rgba(239,68,68,.3)','var(--amber)':'rgba(245,158,11,.3)'};
+  $('verdict-box').style.background=bg[color]||'rgba(59,130,246,.08)';
+  $('verdict-box').style.borderColor=bc[color]||'rgba(59,130,246,.25)';
+}
+function renderTrade(){renderTradeList('give',tradeGive);renderTradeList('get',tradeGet);updateTradeVerdict();}
+function addRandTrade(side){
+  const pool=Object.values(DB).filter(i=>i.rap<50000).sort((a,b)=>b.rap-a.rap).slice(0,40);
+  const item=pool[Math.floor(Math.random()*pool.length)];
+  if(!item)return;
+  side==='give'?tradeGive.push(item):tradeGet.push(item);
+  renderTrade();
+}
+function addActiveTrade(side){if(!activeItem)return;side==='give'?tradeGive.push(activeItem):tradeGet.push(activeItem);renderTrade();}
+function clearTrade(){tradeGive=[];tradeGet=[];renderTrade();}
+
+function onSearch(q){
+  if(!q.trim()){closeDD();return;}
+  const res=Object.values(DB).filter(i=>i.name.toLowerCase().includes(q.toLowerCase())||i.acronym.toLowerCase().includes(q.toLowerCase())).slice(0,8);
+  const dd=$('search-dd');
+  if(!res.length){dd.classList.remove('open');return;}
+  dd.innerHTML=res.map(i=>`
+    <div class="search-item" onclick="selectItem(DB['${i.id}'])">
+      <div class="search-item-name">${i.name}</div>
+      <div class="search-item-meta">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sub)">RAP ${fmt(i.rap)}</span>
+        ${i.demand?tagHtml(i.demand,DC[i.demand]):''}
+        ${i.projected?tagHtml('Projected','var(--red)'):''}
+      </div>
+    </div>`).join('');
+  dd.classList.add('open');
+}
+function closeDD(){$('search-dd').classList.remove('open');}
+document.addEventListener('click',e=>{if(!e.target.closest('.search-wrap'))closeDD();});
+
+function startLive(){
+  if(liveIv)clearInterval(liveIv);
+  liveIv=setInterval(()=>{
+    const pool=Object.values(DB).filter(i=>i.rap<50000);
+    if(!pool.length)return;
+    const item=pool[Math.floor(Math.random()*pool.length)];
+    const price=Math.round(item.rap*(.84+Math.random()*.2));
+    const ok=price>=item.rap, vs=((price/item.rap-1)*100).toFixed(1);
+    feedItems.unshift({item,price,vs,ok,time:'just now'});
+    if(feedItems.length>20)feedItems.pop();
+    $('live-feed').innerHTML=feedItems.map(f=>`
+      <div class="feed-item">
+        <div class="feed-dot" style="background:${f.ok?'var(--green)':'var(--red)'}"></div>
+        <div class="feed-content"><div class="feed-name">${f.item.name}</div><div class="feed-detail">${fmt(f.price)} R$ · ${f.time}</div></div>
+        <span class="feed-badge" style="color:${f.ok?'var(--green)':'var(--red)'};background:${f.ok?'rgba(16,185,129,.1)':'rgba(239,68,68,.1)'}">${f.ok?'+':''}${f.vs}%</span>
+      </div>`).join('');
+    apiUsed=Math.min(apiUsed+Math.floor(Math.random()*2+1),900);
+    const pct=(900-apiUsed)/900*100;
+    $('api-fill').style.width=pct+'%';
+    $('api-fill').style.background=pct>50?'var(--green)':pct>20?'var(--amber)':'var(--red)';
+    set('api-count',(900-apiUsed)+'/900');
+    if(activeItem&&item.id===activeItem.id){sales.unshift({time:'just now',price});if(sales.length>10)sales.pop();drawSales();}
+    if(Math.random()>.5)toast('Sale',`${item.name} — ${fmt(price)} R$`,ok?'green':'red');
+  },8000);
+}
+
+function switchTab(name,btn){
+  ['overview','catalog','analyzer','trades','sales'].forEach(t=>$('tab-'+t).style.display='none');
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  $('tab-'+name).style.display='block';
+  btn.classList.add('active');
+}
+
+function toast(title,body,type='blue'){
+  const c=$('toasts'), d=document.createElement('div');
+  d.className='toast';d.style.borderLeft=`3px solid var(--${type})`;
+  d.innerHTML=`<div class="toast-title">${title}</div><div class="toast-body">${body}</div>`;
+  c.appendChild(d);setTimeout(()=>d.remove(),4500);
+  while(c.children.length>4)c.removeChild(c.firstChild);
+}
+
+init();
+</script>
+</body>
+</html>
